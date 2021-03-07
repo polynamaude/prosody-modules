@@ -1,0 +1,653 @@
+---
+openapi: 3.0.1
+
+info:
+  title: mod_rest API
+  version: 0.3.2
+  description: |
+    API for sending and receiving stanzas, in a REST-ish fashion or by
+    responding to webhooks. Multiple formats supported, including native XML
+    and a simplified JSON mapping.
+  license:
+    name: MIT
+
+paths:
+
+  /rest:
+    post:
+      summary: Send stanzas and receive responses. Webhooks work the same way.
+      tags:
+      - generic
+      security:
+        - basic: []
+        - token: []
+      requestBody:
+        $ref: '#/components/requestBodies/common'
+      responses:
+        200:
+          $ref: '#/components/responses/success'
+        202:
+          $ref: '#/components/responses/sent'
+
+  /rest/{kind}/{type}/{to}:
+    post:
+      summary: Even more RESTful mapping with certain components in the path.
+      tags:
+      - generic
+      security:
+      - basic: []
+      - token: []
+      parameters:
+      - $ref: '#/components/parameters/kind'
+      - $ref: '#/components/parameters/type'
+      - $ref: '#/components/parameters/to'
+      requestBody:
+        $ref: '#/components/requestBodies/common'
+      responses:
+        200:
+          $ref: '#/components/responses/success'
+
+  /rest/ping/{to}:
+    get:
+      tags:
+      - query
+      summary: Ping a local or remote server or other entity
+      security:
+      - basic: []
+      - token: []
+      parameters:
+      - $ref: '#/components/parameters/to'
+      responses:
+        200:
+          description: Test reachability of some address
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/iq_pong'
+            application/xmpp+xml:
+              schema:
+                $ref: '#/components/schemas/iq_pong'
+
+
+  /rest/version/{to}:
+    get:
+      tags:
+      - query
+      summary: Ask what software version is used.
+      security:
+      - basic: []
+      - token: []
+      parameters:
+      - $ref: '#/components/parameters/to'
+      responses:
+        200:
+          description: Version query response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/iq_result_version'
+            application/xmpp+xml:
+              schema:
+                $ref: '#/components/schemas/iq_result_version'
+
+  /rest/disco/{to}:
+    get:
+      tags:
+      - query
+      summary: Query a remote entity for supported features
+      security:
+      - basic: []
+      - token: []
+      parameters:
+      - $ref: '#/components/parameters/to'
+      responses:
+        200:
+          $ref: '#/components/responses/success'
+
+  /rest/items/{to}:
+    get:
+      tags:
+      - query
+      summary: Query an entity for related services, chat rooms or other items
+      security:
+      - basic: []
+      - token: []
+      parameters:
+      - $ref: '#/components/parameters/to'
+      responses:
+        200:
+          $ref: '#/components/responses/success'
+
+components:
+  schemas:
+    stanza:
+      type: object
+      example:
+        body: Hello
+        type: chat
+        kind: message
+        to: alice@example.com
+        state: active
+
+      properties:
+        kind:
+          $ref: '#/components/schemas/kind'
+        type:
+          $ref: '#/components/schemas/type'
+        to:
+          $ref: '#/components/schemas/to'
+        from:
+          $ref: '#/components/schemas/from'
+        id:
+          $ref: '#/components/schemas/id'
+        lang:
+          $ref: '#/components/schemas/lang'
+
+        body:
+          $ref: '#/components/schemas/body'
+        subject:
+          $ref: '#/components/schemas/subject'
+        thread:
+          $ref: '#/components/schemas/thread'
+
+        show:
+          $ref: '#/components/schemas/show'
+        status:
+          $ref: '#/components/schemas/status'
+        priority:
+          $ref: '#/components/schemas/priority'
+
+        state:
+          $ref: '#/components/schemas/state'
+        nick:
+          $ref: '#/components/schemas/nick'
+        delay:
+          $ref: '#/components/schemas/delay'
+        replace:
+          $ref: '#/components/schemas/replace'
+
+        join:
+          $ref: '#/components/schemas/join'
+
+        html:
+          $ref: '#/components/schemas/html'
+
+        ping:
+          $ref: '#/components/schemas/ping'
+        version:
+          oneOf:
+            - $ref: '#/components/schemas/version'
+            - type: boolean
+        disco:
+          $ref: '#/components/schemas/disco'
+        items:
+          $ref: '#/components/schemas/items'
+        command:
+          $ref: '#/components/schemas/command'
+
+        oob_url:
+          $ref: '#/components/schemas/oob_url'
+        payload:
+          $ref: '#/components/schemas/payload'
+        dataform:
+          $ref: '#/components/schemas/dataform'
+        formdata:
+          $ref: '#/components/schemas/formdata'
+        stats:
+          $ref: '#/components/schemas/stats'
+        error:
+          $ref: '#/components/schemas/error'
+
+    iq_pong:
+      description: Test reachability of some XMPP address
+      type: object
+      xml:
+        name: iq
+      properties:
+        type:
+          type: string
+          enum:
+          - result
+          xml:
+            attribute: true
+
+    iq_result_version:
+      description: Version query response
+      type: object
+      xml:
+        name: iq
+      properties:
+        type:
+          type: string
+          enum:
+          - result
+          xml:
+            attribute: true
+        version:
+          $ref: '#/components/schemas/version'
+
+    kind:
+      description: Which kind of stanza
+      type: string
+      enum:
+      - message
+      - presence
+      - iq
+
+    type:
+      description: Stanza type
+      type: string
+      enum:
+      - chat
+      - normal
+      - headline
+      - groupchat
+      - get
+      - set
+      - result
+      - available
+      - unavailable
+      - subscribe
+      - subscribed
+      - unsubscribe
+      - unsubscribed
+
+    to:
+      description: recipient
+      example: alice@example.com
+      type: string
+
+    from:
+      description: the sender
+      example: bob@localhost.example
+      type: string
+
+    id:
+      description: Reasonably unique id. mod_rest generates one if left out.
+      type: string
+
+    lang:
+      description: Language code
+      example: en
+      type: string
+
+    body:
+      description: Human-readable chat message
+      example: Hello, World!
+      type: string
+
+    subject:
+      description: Subject of message or group chat
+      example: Talking about stuff
+      type: string
+
+    thread:
+      description: Message thread identifier
+      type: string
+
+    show:
+      description: indicator of availability, ie away or not
+      type: string
+      enum:
+      - away
+      - chat
+      - dnd
+      - xa
+
+    status:
+      description: Textual status message.
+      type: string
+
+    priority:
+      description: Presence priority
+      type: string
+
+    state:
+      description: Chat state notifications, e.g. "is typing..."
+      type: string
+      enum:
+      - active
+      - inactive
+      - gone
+      - composing
+      - paused
+      example: composing
+
+    nick:
+      type: string
+      description: Nickname of the sender
+
+    delay:
+      type: string
+      description: Timestamp of when a stanza was delayed, in ISO 8601 / XEP-0082
+        format.
+
+    replace:
+      type: string
+      description: ID of message being replaced (e.g. for corrections)
+
+    join:
+      description: For joining Multi-User-Chats
+      type: boolean
+      enum:
+      - true
+
+    html:
+      description: HTML version of 'body'
+      example: <body><p>Hello!</p></body>
+      type: string
+
+    ping:
+      description: A ping.
+      type: boolean
+      enum:
+      - true
+      xml:
+        name: ping
+        namespace: urn:xmpp:ping
+
+    version:
+      type: object
+      description: Software version query
+      properties:
+        name:
+          type: string
+          example: My Software
+        version:
+          type: string
+          example: 1.0.0
+        os:
+          type: string
+          example: Linux
+      required:
+      - name
+      - version
+      xml:
+        name: query
+        namespace: jabber:iq:version
+
+    disco:
+      description: Discover supported features
+      oneOf:
+      - description: A full response
+        type: object
+        properties:
+          features:
+            description: List of URIs indicating supported features
+            type: array
+            items:
+              type: string
+          identities:
+            description: List of abstract identities or types that describe the
+              entity
+            type: array
+            example:
+            - name: Prosody
+              type: im
+              category: server
+            items:
+              type: object
+              properties:
+                name:
+                  type: string
+                type:
+                  type: string
+                category:
+                  type: string
+          node:
+            type: string
+          extensions:
+            type: object
+      - description: A query with a node, or an empty response with a node
+        type: string
+      - description: Either a query, or an empty response
+        type: boolean
+
+    items:
+      description: List of references to other entities
+      oneOf:
+      - description: List of items referenced
+        type: array
+        items:
+          properties:
+            jid:
+              type: string
+              description: Address of item
+            node:
+              type: string
+            name:
+              type: string
+              description: Descriptive name
+          required:
+          - jid
+          type: object
+      - type: string
+        description: A query with a node, or an empty reply list with a node
+      - description: An items query or empty list
+        type: boolean
+        enum:
+        - true
+
+    command:
+      description: Ad-hoc commands.
+      oneOf:
+      - type: object
+        properties:
+          data:
+            $ref: '#/components/schemas/formdata'
+          action:
+            type: string
+          note:
+            type: object
+            properties:
+              text:
+                type: string
+              type:
+                type: string
+                enum:
+                - info
+                - warn
+                - error
+          form:
+            $ref: '#/components/schemas/dataform'
+          sessionid:
+            type: string
+          status:
+            type: string
+          node:
+            type: string
+          actions:
+            type: object
+            properties:
+              complete:
+                type: boolean
+              prev:
+                type: boolean
+              next:
+                type: boolean
+              execute:
+                type: string
+      - type: string
+        description: Call a command by 'node' id, without arguments
+
+    oob_url:
+      description: URL of an attached media file.
+      example: https://media.example.net/thisfile.jpg
+      type: string
+
+    payload:
+      description: A piece of arbitrary JSON with a type field attached
+      type: object
+      required:
+        - datatype
+        - data
+      properties:
+        data:
+          example: '{"some":"json"}'
+          type: object
+        datatype:
+          example: urn:example:my-json#payload
+          type: string
+
+    dataform:
+      description: Data form
+      type: object
+      properties:
+        title:
+          description: Title of the form
+          example: TPS Report
+          type: string
+        fields:
+          type: array
+          items:
+            description: Form field
+            type: object
+            properties:
+              value:
+                description: Field value
+                oneOf:
+                - type: string
+                - type: array
+                  items:
+                    type: string
+              type:
+                description: Type of form field
+                type: string
+              label:
+                description: Descriptive label for the field
+                type: string
+              desc:
+                description: Longer description, i.e. that would go in a tooltip
+                type: string
+              required:
+                description: Whether the field must be included in the form
+                type: boolean
+              var:
+                description: Internal name of the field
+                type: string
+        type:
+          type: string
+          enum:
+          - form
+          - submit
+          - cancel
+          - result
+        instructions:
+          type: string
+
+    formdata:
+      description: Simplified data form carrying only values
+      type: object
+      additionalProperties:
+        oneOf:
+        - type: string
+        - type: array
+          items:
+            type: string
+
+    stats:
+      description: Statistics
+      type: array
+      items:
+        type: object
+        properties:
+          name:
+            type: string
+          unit:
+            type: string
+          value:
+            type: string
+
+    error:
+      description: Description of something gone wrong. See the Stanza Errors section in RFC 6120.
+      type: object
+      properties:
+        type:
+          description: General category of error
+          type: string
+          enum:
+          - auth
+          - cancel
+          - continue
+          - modify
+          - wait
+        condition:
+          description: Specific error condition.
+          type: string
+          # enum: [ full list available in RFC 6120 ]
+        code:
+          description: Legacy numeric error code. Similar to HTTP status codes.
+          type: integer
+        text:
+          description: Description of error intended for human eyes.
+          type: string
+
+  securitySchemes:
+    token:
+      description: Tokens from mod_http_oauth2.
+      scheme: Bearer
+      type: http
+    basic:
+      description: Use JID as username.
+      scheme: Basic
+      type: http
+
+  requestBodies:
+    common:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/stanza'
+        application/xmpp+xml:
+          schema:
+            description: Single XMPP stanza in XML format.
+        application/x-www-form-urlencoded:
+          schema:
+            description: A subset of the JSON schema, only top level string fields.
+
+  responses:
+    success:
+      description: The stanza was sent and returned a response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/stanza'
+        application/xmpp+xml:
+          schema:
+            description: Single XMPP stanza in XML format.
+            example: <message><body>Hello</body></message>
+        application/x-www-form-urlencoded:
+          schema:
+            description: A subset of the JSON schema, only top level string fields.
+            example: body=Hello
+        text/plain:
+          schema:
+            description: Plain text response used as message body.
+            example: Hello
+            type: string
+    sent:
+      description: The stanza was sent without problem, and without response,
+        so an empty reply.
+
+  parameters:
+    to:
+      name: to
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/to'
+    kind:
+      name: kind
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/kind'
+    type:
+      name: type
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/type'
+
+...
